@@ -8,7 +8,7 @@ import (
 )
 
 func registerRoutes(r *cais.Router, deps Deps, cfg cais.Config) {
-	listen := handlers.NewListeningHandler(deps.Views, deps.Library, deps.Site, deps.Catalog, cfg)
+	listen := handlers.NewListeningHandler(deps.Views, deps.Library, deps.Site, deps.Catalog, cfg, deps.Store)
 	r.Get("/", listen.Home)
 	r.Get("/artistas", listen.Artists)
 	r.Get("/albuns", listen.Albums)

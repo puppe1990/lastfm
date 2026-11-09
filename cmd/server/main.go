@@ -94,7 +94,8 @@ func bootstrapWithConfig(ctx context.Context, cfg cais.Config) (*app.App, error)
 		_ = s.Close()
 		return nil, fmt.Errorf("last.fm: %w", err)
 	}
-	lib := lastfm.NewCache(lastfm.New(lfCfg, nil), 45*time.Second)
+	client := lastfm.New(lfCfg, nil)
+	lib := lastfm.NewCache(client, 45*time.Second)
 
 	staticDir, err := cais.ResolveWebDir("static", cfg.StaticDir)
 	if err != nil {
@@ -103,14 +104,15 @@ func bootstrapWithConfig(ctx context.Context, cfg cais.Config) (*app.App, error)
 	}
 
 	return app.New(cfg, app.Deps{
-		Views:     views,
-		Store:     s,
-		Library:   lib,
-		StaticDir: staticDir,
-		Site:      meta.SiteFrom("Ouvindo", cfg.AppURL),
-		Catalog:   catalog,
-		Catalogs:  catalogs,
-		DevReload: devReload,
+		Views:          views,
+		Store:          s,
+		Library:        lib,
+		ScrobbleSource: client,
+		StaticDir:      staticDir,
+		Site:           meta.SiteFrom("Ouvindo", cfg.AppURL),
+		Catalog:        catalog,
+		Catalogs:       catalogs,
+		DevReload:      devReload,
 	})
 }
 

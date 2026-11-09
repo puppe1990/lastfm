@@ -14,6 +14,7 @@ import (
 	"github.com/puppe1990/amarra-cais/pkg/cais/devlog"
 	"github.com/puppe1990/amarra-cais/pkg/cais/devreload"
 	"github.com/puppe1990/amarra-cais/pkg/cais/i18n"
+	caisjobs "github.com/puppe1990/amarra-cais/pkg/cais/jobs"
 	"github.com/puppe1990/amarra-cais/pkg/cais/jobsui"
 	"github.com/puppe1990/amarra-cais/pkg/cais/meta"
 	"github.com/puppe1990/amarra-cais/pkg/cais/middleware"
@@ -21,16 +22,18 @@ import (
 
 	appi18n "github.com/puppe1990/lastfm/internal/i18n"
 	"github.com/puppe1990/lastfm/internal/lastfm"
+	"github.com/puppe1990/lastfm/internal/scrobbles"
 	"github.com/puppe1990/lastfm/internal/store"
 )
 
 type Deps struct {
-	Views     *view.Renderer
-	Store     store.Store
-	Library   lastfm.Library
-	StaticDir string
-	Site      meta.Site
-	Catalog   *i18n.Catalog
+	Views          *view.Renderer
+	Store          store.Store
+	Library        lastfm.Library
+	ScrobbleSource scrobbles.Source
+	StaticDir      string
+	Site           meta.Site
+	Catalog        *i18n.Catalog
 	// Catalogs is the full locale set for LocaleMiddleware and the per-request
 	// view renderer (#211). Catalog stays the boot fallback for handler copy.
 	Catalogs map[string]*i18n.Catalog
@@ -40,10 +43,12 @@ type Deps struct {
 }
 
 type App struct {
-	config cais.Config
-	store  store.Store
-	router *cais.Router
-	server *http.Server
+	config    cais.Config
+	store     store.Store
+	heartbeat store.Store
+	worker    *caisjobs.Worker
+	router    *cais.Router
+	server    *http.Server
 }
 
 func New(cfg cais.Config, deps Deps) (*App, error) {
@@ -97,10 +102,17 @@ func New(cfg cais.Config, deps Deps) (*App, error) {
 	}
 	r.Get("/health", healthHandler(deps.Store, cfg))
 
+	worker, heartbeat, err := bootWorker(cfg.DBPath, cfg.Env, deps.Store, deps.ScrobbleSource)
+	if err != nil {
+		return nil, err
+	}
+
 	return &App{
-		config: cfg,
-		store:  deps.Store,
-		router: r,
+		config:    cfg,
+		store:     deps.Store,
+		heartbeat: heartbeat,
+		worker:    worker,
+		router:    r,
 		server: &http.Server{
 			Addr:              cfg.Port,
 			Handler:           r,
@@ -135,6 +147,14 @@ func (a *App) Run() error {
 }
 
 func (a *App) RunContext(ctx context.Context) error {
+	if a.worker != nil {
+		go func() {
+			if err := a.worker.Run(ctx); err != nil && ctx.Err() == nil {
+				log.Printf("jobs worker: %v", err)
+			}
+		}()
+	}
+
 	errCh := make(chan error, 1)
 	go func() {
 		errCh <- a.server.ListenAndServe()
@@ -145,17 +165,24 @@ func (a *App) RunContext(ctx context.Context) error {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := a.server.Shutdown(shutdownCtx); err != nil {
-			_ = a.store.Close()
+			a.closeStores()
 			return err
 		}
 		<-errCh
-		_ = a.store.Close()
+		a.closeStores()
 		return nil
 	case err := <-errCh:
-		_ = a.store.Close()
+		a.closeStores()
 		if err == http.ErrServerClosed {
 			return nil
 		}
 		return err
 	}
+}
+
+func (a *App) closeStores() {
+	if a.heartbeat != nil {
+		_ = a.heartbeat.Close()
+	}
+	_ = a.store.Close()
 }

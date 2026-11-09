@@ -17,14 +17,15 @@ import (
 )
 
 type stubLibrary struct {
-	user    lastfm.User
-	recent  lastfm.RecentPage
-	artists lastfm.ArtistPage
-	albums  lastfm.AlbumPage
-	tracks  lastfm.TrackPage
-	loved   lastfm.TrackPage
-	err     error
-	period  string
+	user         lastfm.User
+	recent       lastfm.RecentPage
+	artists      lastfm.ArtistPage
+	albums       lastfm.AlbumPage
+	tracks       lastfm.TrackPage
+	loved        lastfm.TrackPage
+	err          error
+	period       string
+	recentLimits []int
 }
 
 func (s *stubLibrary) UserName() string { return s.user.Name }
@@ -36,7 +37,8 @@ func (s *stubLibrary) User(context.Context) (lastfm.User, error) {
 	return s.user, nil
 }
 
-func (s *stubLibrary) RecentTracks(context.Context, int, int) (lastfm.RecentPage, error) {
+func (s *stubLibrary) RecentTracks(_ context.Context, _, limit int) (lastfm.RecentPage, error) {
+	s.recentLimits = append(s.recentLimits, limit)
 	if s.err != nil {
 		return lastfm.RecentPage{}, s.err
 	}
@@ -118,7 +120,7 @@ func seedLibrary(t *testing.T) *stubLibrary {
 
 func newListening(t *testing.T, lib lastfm.Library) *ListeningHandler {
 	t.Helper()
-	return NewListeningHandler(setupTestViews(t), lib, testSite(), appi18n.NewCatalog("pt"), cais.Config{})
+	return NewListeningHandler(setupTestViews(t), lib, testSite(), appi18n.NewCatalog("pt"), cais.Config{}, nil)
 }
 
 func TestHome_ShowsProfileNowPlayingAndRecent(t *testing.T) {
@@ -181,6 +183,69 @@ func TestHome_ShowsLastfmStyleCharts(t *testing.T) {
 		if !strings.Contains(body, want) {
 			t.Errorf("missing %q", want)
 		}
+	}
+}
+
+func TestHome_UsesLedgerForChartsWithoutHeavyFetch(t *testing.T) {
+	lib := seedLibrary(t)
+	lib.artists.Artists = nil
+	loc := time.FixedZone("BRT", -3*3600)
+	now := time.Date(2026, 11, 9, 18, 0, 0, 0, loc)
+	s := setupTestStore(t)
+	if _, err := s.UpsertScrobbles([]lastfm.Track{
+		{Name: "Dissect Yourself", Artist: "Car Bomb", PlayedUnix: now.Add(-time.Hour).Unix()},
+		{Name: "Dissect Yourself", Artist: "Car Bomb", Album: "live", PlayedUnix: now.Add(-2 * time.Hour).Unix()},
+		{Name: "Bleed", Artist: "Meshuggah", PlayedUnix: now.Add(-8 * 24 * time.Hour).Unix()},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	h := newListening(t, lib)
+	h.ledger = s
+	h.now = func() time.Time { return now }
+
+	rr := httptest.NewRecorder()
+	h.Home(rr, httptest.NewRequest(http.MethodGet, "/", nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	body := rr.Body.String()
+	if !strings.Contains(body, "Car Bomb") {
+		t.Fatal("missing ledger artist")
+	}
+	if !strings.Contains(body, "listen-share") {
+		t.Fatal("missing share bars")
+	}
+	if len(lib.recentLimits) != 1 || lib.recentLimits[0] != 20 {
+		t.Fatalf("recent limits = %v, want a single page of 20", lib.recentLimits)
+	}
+}
+
+func TestHome_FallsBackToAPIUntilLedgerCoversWeek(t *testing.T) {
+	lib := seedLibrary(t)
+	lib.artists.Artists = []lastfm.Artist{{Name: "Trivium", Playcount: 12, Rank: 1}}
+	loc := time.FixedZone("BRT", -3*3600)
+	now := time.Date(2026, 11, 9, 18, 0, 0, 0, loc)
+	s := setupTestStore(t)
+	if _, err := s.UpsertScrobbles([]lastfm.Track{
+		{Name: "today", Artist: "Car Bomb", PlayedUnix: now.Add(-time.Hour).Unix()},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	h := newListening(t, lib)
+	h.ledger = s
+	h.now = func() time.Time { return now }
+
+	rr := httptest.NewRecorder()
+	h.Home(rr, httptest.NewRequest(http.MethodGet, "/", nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d", rr.Code)
+	}
+	body := rr.Body.String()
+	if !strings.Contains(body, "Trivium") {
+		t.Fatal("should keep Last.fm week until the ledger reaches 7 days")
+	}
+	if len(lib.recentLimits) < 2 || lib.recentLimits[1] != 200 {
+		t.Fatalf("recent limits = %v, want a 200 fallback", lib.recentLimits)
 	}
 }
 

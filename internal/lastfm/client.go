@@ -68,12 +68,24 @@ func (c *Client) User(ctx context.Context) (User, error) {
 
 // RecentTracks is user.getRecentTracks (extended=1 so artist.name is filled).
 func (c *Client) RecentTracks(ctx context.Context, page, limit int) (RecentPage, error) {
-	raw, err := c.get(ctx, url.Values{
+	return c.RecentTracksRange(ctx, 0, 0, page, limit)
+}
+
+// RecentTracksRange is user.getRecentTracks bounded by unix from/to (0 skips the bound).
+func (c *Client) RecentTracksRange(ctx context.Context, fromUnix, toUnix int64, page, limit int) (RecentPage, error) {
+	q := url.Values{
 		"method":   {"user.getRecentTracks"},
 		"extended": {"1"},
 		"page":     {itoa(page)},
 		"limit":    {itoa(limit)},
-	})
+	}
+	if fromUnix > 0 {
+		q.Set("from", fmt.Sprintf("%d", fromUnix))
+	}
+	if toUnix > 0 {
+		q.Set("to", fmt.Sprintf("%d", toUnix))
+	}
+	raw, err := c.get(ctx, q)
 	if err != nil {
 		return RecentPage{}, err
 	}

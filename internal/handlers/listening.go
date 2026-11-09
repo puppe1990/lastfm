@@ -13,19 +13,21 @@ import (
 	"github.com/puppe1990/amarra-cais/pkg/cais/meta"
 
 	"github.com/puppe1990/lastfm/internal/lastfm"
+	"github.com/puppe1990/lastfm/internal/store"
 )
 
 type ListeningHandler struct {
 	views   *view.Renderer
 	lib     lastfm.Library
+	ledger  store.Store
 	site    meta.Site
 	catalog *i18n.Catalog
 	cfg     cais.Config
 	now     func() time.Time
 }
 
-func NewListeningHandler(views *view.Renderer, lib lastfm.Library, site meta.Site, catalog *i18n.Catalog, cfg cais.Config) *ListeningHandler {
-	return &ListeningHandler{views: views, lib: lib, site: site, catalog: catalog, cfg: cfg, now: time.Now}
+func NewListeningHandler(views *view.Renderer, lib lastfm.Library, site meta.Site, catalog *i18n.Catalog, cfg cais.Config, ledger store.Store) *ListeningHandler {
+	return &ListeningHandler{views: views, lib: lib, ledger: ledger, site: site, catalog: catalog, cfg: cfg, now: time.Now}
 }
 
 func (h *ListeningHandler) Home(w http.ResponseWriter, r *http.Request) {
@@ -40,12 +42,30 @@ func (h *ListeningHandler) Home(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, r, "home", err)
 		return
 	}
-	window, werr := h.lib.RecentTracks(r.Context(), 1, 200)
-	if werr != nil {
+	window, week := h.chartWindow(r, recent)
+	h.write(w, r, "home", h.t(r, "home.title"), "home", http.StatusOK, presentHome(user, recent, window, week, pageN, h.clock()))
+}
+
+func (h *ListeningHandler) chartWindow(r *http.Request, recent lastfm.RecentPage) (lastfm.RecentPage, lastfm.ArtistPage) {
+	now := h.clock()
+	from := now.Add(-7 * 24 * time.Hour).Unix()
+	to := now.Unix() + 1
+	if h.ledger != nil {
+		minUnix, _, count, berr := h.ledger.ScrobbleBounds()
+		if berr == nil && count > 0 && minUnix <= from {
+			tracks, err := h.ledger.ListScrobblesBetween(from, to)
+			if err == nil && len(tracks) > 0 {
+				artists, _ := h.ledger.TopArtistsBetween(from, to, 8)
+				return lastfm.RecentPage{Tracks: tracks}, lastfm.ArtistPage{Artists: artists}
+			}
+		}
+	}
+	window, err := h.lib.RecentTracks(r.Context(), 1, 200)
+	if err != nil {
 		window = recent
 	}
 	week, _ := h.lib.TopArtists(r.Context(), "7day", 1, 8)
-	h.write(w, r, "home", h.t(r, "home.title"), "home", http.StatusOK, presentHome(user, recent, window, week, pageN, h.clock()))
+	return window, week
 }
 
 func (h *ListeningHandler) Artists(w http.ResponseWriter, r *http.Request) {

@@ -36,8 +36,10 @@ Seeds and fixtures come from `pkg/cais/fakedata` (`Name`, `Title`, `Email`, `Sen
 | Path                        | Responsibility                 |
 | --------------------------- | ------------------------------ |
 | `cmd/server/`               | Entry point                    |
-| `internal/app/`             | Bootstrap, `registerRoutes`    |
+| `internal/app/`             | Bootstrap, `registerRoutes`, in-process job worker |
 | `internal/handlers/`        | HTTP handlers (`view.Write`)   |
+| `internal/scrobbles/`       | Last.fm catch-up (last day + backfill) |
+| `internal/jobs/`            | Amarra job `SyncScrobbles`     |
 | `internal/store/`           | SQLite + migrations            |
 | `internal/models/`          | Row structs (SQL columns)      |
 | `web/templates/layouts/`    | Amarra layout (`#amarra-main`) |

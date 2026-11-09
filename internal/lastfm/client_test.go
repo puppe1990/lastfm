@@ -91,6 +91,36 @@ func TestClient_RecentTracksUsesExtendedFlag(t *testing.T) {
 	}
 }
 
+func TestClient_RecentTracksRangeSendsFromAndTo(t *testing.T) {
+	fakedata.Seed(24)
+	title := fakedata.Title()
+	var gotQuery string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotQuery = r.URL.RawQuery
+		fmt.Fprintf(w, `{"recenttracks":{"track":[{"name":%q,"artist":{"name":"A"},"date":{"uts":"50"}}],"@attr":{"page":"1","totalPages":"1","total":"1"}}}`, title)
+	}))
+	t.Cleanup(srv.Close)
+
+	c := New(Config{APIKey: "k", User: "puppe90", BaseURL: srv.URL}, srv.Client())
+	page, err := c.RecentTracksRange(context.Background(), 10, 90, 1, 200)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(page.Tracks) != 1 || page.Tracks[0].Name != title {
+		t.Fatalf("tracks = %+v", page.Tracks)
+	}
+	q := mustQuery(t, gotQuery)
+	if q.Get("method") != "user.getRecentTracks" {
+		t.Errorf("method = %q", q.Get("method"))
+	}
+	if q.Get("from") != "10" || q.Get("to") != "90" {
+		t.Errorf("from/to = %s/%s", q.Get("from"), q.Get("to"))
+	}
+	if q.Get("limit") != "200" || q.Get("extended") != "1" {
+		t.Errorf("limit/extended = %s/%s", q.Get("limit"), q.Get("extended"))
+	}
+}
+
 func TestClient_TopArtistsSendsPeriod(t *testing.T) {
 	fakedata.Seed(23)
 	name := fakedata.Name()

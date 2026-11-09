@@ -10,6 +10,8 @@ import (
 	"github.com/puppe1990/amarra-cais/pkg/cais/session"
 	caissqlite "github.com/puppe1990/amarra-cais/pkg/cais/sqlite"
 	"github.com/puppe1990/amarra-cais/pkg/cais/sqllog"
+
+	"github.com/puppe1990/lastfm/internal/lastfm"
 	_ "modernc.org/sqlite"
 )
 
@@ -18,6 +20,12 @@ type Store interface {
 	Ping() error
 	DB() *sql.DB
 	Close() error
+	UpsertScrobbles(tracks []lastfm.Track) (int, error)
+	ListScrobblesBetween(fromUnix, toUnix int64) ([]lastfm.Track, error)
+	TopArtistsBetween(fromUnix, toUnix int64, limit int) ([]lastfm.Artist, error)
+	ScrobbleBounds() (minUnix, maxUnix int64, count int, err error)
+	LoadSyncCursor() (SyncCursor, error)
+	SaveSyncCursor(SyncCursor) error
 }
 
 type SQLiteStore struct {
@@ -35,6 +43,10 @@ func NewSQLiteStore(dsn string, env string) (*SQLiteStore, error) {
 	db, err := sql.Open("sqlite", caissqlite.DSN(dsn))
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)
+	}
+	if err := caissqlite.Configure(db); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("sqlite pragmas: %w", err)
 	}
 
 	if err := applyMigrations(db); err != nil {
