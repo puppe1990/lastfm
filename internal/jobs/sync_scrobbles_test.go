@@ -5,19 +5,30 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/puppe1990/lastfm/internal/lastfm"
 	"github.com/puppe1990/lastfm/internal/store"
 )
 
 func TestPerformSyncScrobbles_StoresRangeFromLastfm(t *testing.T) {
+	now := time.Now()
+	uts := now.Add(-time.Hour).Unix()
+	registered := now.Add(-40 * 24 * time.Hour).Unix()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Query().Get("method") {
 		case "user.getInfo":
-			fmt.Fprint(w, `{"user":{"name":"puppe90","playcount":"2","registered":{"unixtime":"1"}}}`)
+			fmt.Fprintf(w, `{"user":{"name":"puppe90","playcount":"2","registered":{"unixtime":"%d"}}}`, registered)
 		case "user.getRecentTracks":
-			fmt.Fprint(w, `{"recenttracks":{"track":[{"name":"Bleed","artist":{"name":"Meshuggah"},"date":{"uts":"1700000100"}}],"@attr":{"page":"1","totalPages":"1","total":"1"}}}`)
+			from, _ := strconv.ParseInt(r.URL.Query().Get("from"), 10, 64)
+			to, _ := strconv.ParseInt(r.URL.Query().Get("to"), 10, 64)
+			if (from > 0 && uts <= from) || (to > 0 && uts >= to) {
+				fmt.Fprint(w, `{"recenttracks":{"track":[],"@attr":{"page":"1","totalPages":"1","total":"0"}}}`)
+				return
+			}
+			fmt.Fprintf(w, `{"recenttracks":{"track":[{"name":"Bleed","artist":{"name":"Meshuggah"},"date":{"uts":"%d"}}],"@attr":{"page":"1","totalPages":"1","total":"1"}}}`, uts)
 		default:
 			http.NotFound(w, r)
 		}

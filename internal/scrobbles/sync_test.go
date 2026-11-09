@@ -152,6 +152,75 @@ func TestSyncer_SkipsBackfillWhenAlreadyDone(t *testing.T) {
 	}
 }
 
+type spySource struct {
+	inner *memSource
+	calls [][2]int64
+}
+
+func (s *spySource) User(ctx context.Context) (lastfm.User, error) {
+	return s.inner.User(ctx)
+}
+
+func (s *spySource) RecentTracksRange(ctx context.Context, fromUnix, toUnix int64, page, limit int) (lastfm.RecentPage, error) {
+	if page == 1 {
+		s.calls = append(s.calls, [2]int64{fromUnix, toUnix})
+	}
+	return s.inner.RecentTracksRange(ctx, fromUnix, toUnix, page, limit)
+}
+
+func TestSyncer_BackfillUsesThirtyDayWindows(t *testing.T) {
+	now := testNow()
+	registered := now.AddDate(-2, 0, 0).Unix()
+	src := &spySource{inner: &memSource{
+		user: lastfm.User{Name: "puppe90", RegisteredUnix: registered},
+		all: []lastfm.Track{
+			{Name: "today", Artist: "A", PlayedUnix: now.Add(-2 * time.Hour).Unix()},
+			{Name: "month", Artist: "B", PlayedUnix: now.Add(-20 * 24 * time.Hour).Unix()},
+			{Name: "older", Artist: "C", PlayedUnix: now.Add(-50 * 24 * time.Hour).Unix()},
+		},
+	}}
+	s, err := store.NewSQLiteStore(":memory:", "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = s.Close() })
+
+	syncer := Syncer{
+		Source:         src,
+		Ledger:         s,
+		Now:            func() time.Time { return now },
+		Sleep:          func(time.Duration) {},
+		PageSize:       200,
+		BackfillBudget: time.Hour,
+	}
+	rep, err := syncer.Run(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rep.Inserted != 3 {
+		t.Fatalf("inserted = %d, want 3", rep.Inserted)
+	}
+	if !rep.BackfillDone {
+		t.Fatal("backfill should finish")
+	}
+	if len(src.calls) < 2 {
+		t.Fatalf("calls = %d, want last-day plus backfill windows", len(src.calls))
+	}
+	if src.calls[0][1] != 0 {
+		t.Fatalf("last-day to = %d, want 0 (omit to)", src.calls[0][1])
+	}
+	const maxSpan = 31 * 24 * 3600
+	for i, c := range src.calls[1:] {
+		if c[1] <= 0 {
+			continue
+		}
+		span := c[1] - c[0]
+		if span > maxSpan {
+			t.Errorf("window %d span %d s (from=%d to=%d) exceeds 31d", i, span, c[0], c[1])
+		}
+	}
+}
+
 func TestSyncer_ResumesBackfillAfterBudget(t *testing.T) {
 	now := testNow()
 	registered := now.AddDate(-5, 0, 0).Unix()

@@ -16,7 +16,7 @@ Live: https://lastfm.apps.gestaobem.com
 
 Chart windows: `7day`, `1month`, `3month`, `6month`, `12month`, `overall` (`?period=`). Responses are cached in memory for 45 seconds.
 
-Home charts read SQLite once the ledger covers 7 days. Job `SyncScrobbles` runs on boot and every 5 minutes: last day first, then backfill from account creation. In-process worker (Cleat only runs `bin/server`).
+Home charts read SQLite once the ledger covers 7 days. Job `SyncScrobbles` runs on boot and every 5 minutes: last 25h first (`from` only), then 30-day backfill windows back to account creation. Last.fm 500/429 retries three times. In-process worker (Cleat only runs `bin/server`).
 
 ## Run
 

@@ -141,7 +141,52 @@ func chartQuery(method, period string, page, limit int) url.Values {
 	}
 }
 
+const getAttempts = 3
+
 func (c *Client) get(ctx context.Context, extra url.Values) ([]byte, error) {
+	var last error
+	for attempt := 1; attempt <= getAttempts; attempt++ {
+		body, status, err := c.getOnce(ctx, extra)
+		if err == nil && status < 400 {
+			return body, nil
+		}
+		if err != nil {
+			last = err
+		} else {
+			last = fmt.Errorf("last.fm HTTP %d %s", status, extra.Get("method"))
+		}
+		if status > 0 && !retryableStatus(status) {
+			return nil, last
+		}
+		if attempt == getAttempts {
+			break
+		}
+		if err := sleepRetry(ctx, attempt); err != nil {
+			return nil, last
+		}
+	}
+	return nil, last
+}
+
+func retryableStatus(status int) bool {
+	return status == http.StatusTooManyRequests ||
+		status == http.StatusInternalServerError ||
+		status == http.StatusBadGateway ||
+		status == http.StatusServiceUnavailable
+}
+
+func sleepRetry(ctx context.Context, attempt int) error {
+	timer := time.NewTimer(time.Duration(attempt) * 200 * time.Millisecond)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
+}
+
+func (c *Client) getOnce(ctx context.Context, extra url.Values) ([]byte, int, error) {
 	q := url.Values{
 		"method":  extra["method"],
 		"user":    {c.cfg.User},
@@ -157,24 +202,21 @@ func (c *Client) get(ctx context.Context, extra url.Values) ([]byte, error) {
 	endpoint := strings.TrimRight(c.cfg.BaseURL, "/") + "/?" + q.Encode()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
-		return nil, fmt.Errorf("last.fm request: %w", err)
+		return nil, 0, fmt.Errorf("last.fm request: %w", err)
 	}
 	req.Header.Set("User-Agent", "Ouvindo/1.0 (https://lastfm.apps.gestaobem.com)")
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("last.fm fetch %s: %w", extra.Get("method"), err)
+		return nil, 0, fmt.Errorf("last.fm fetch %s: %w", extra.Get("method"), err)
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 	if err != nil {
-		return nil, fmt.Errorf("last.fm body %s: %w", extra.Get("method"), err)
+		return nil, resp.StatusCode, fmt.Errorf("last.fm body %s: %w", extra.Get("method"), err)
 	}
-	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("last.fm HTTP %d %s", resp.StatusCode, extra.Get("method"))
-	}
-	return body, nil
+	return body, resp.StatusCode, nil
 }
 
 func itoa(n int) string {

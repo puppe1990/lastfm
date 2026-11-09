@@ -13,6 +13,7 @@ const (
 	defaultPageSize = 200
 	defaultGap      = 200 * time.Millisecond
 	dayOverlap      = 25 * time.Hour
+	backfillWindow  = 30 * 24 * time.Hour
 	// DefaultBackfillBudget is how long one job spends walking older than last day.
 	DefaultBackfillBudget = 3 * time.Minute
 )
@@ -83,7 +84,7 @@ func (s *Syncer) Run(ctx context.Context) (Report, error) {
 	if cursor.RegisteredUnix > 0 && from < cursor.RegisteredUnix {
 		from = cursor.RegisteredUnix
 	}
-	inserted, err := s.pullPages(ctx, from, now.Unix()+1)
+	inserted, err := s.pullPages(ctx, from, 0)
 	if err != nil {
 		cursor.LastError = err.Error()
 		_ = s.Ledger.SaveSyncCursor(cursor)
@@ -147,39 +148,41 @@ func (s *Syncer) backfill(ctx context.Context, cursor *store.SyncCursor, now tim
 	if err != nil {
 		return 0, err
 	}
-	fromUnix := cursor.RegisteredUnix
 	inserted := 0
 	for s.Now().Before(deadline) {
 		if err := ctx.Err(); err != nil {
 			return inserted, err
 		}
-		got, err := s.Source.RecentTracksRange(ctx, fromUnix, toUnix, 1, s.PageSize)
-		if err != nil {
-			return inserted, fmt.Errorf("backfill to=%d: %w", toUnix, err)
-		}
-		n, err := s.Ledger.UpsertScrobbles(got.Tracks)
-		if err != nil {
-			return inserted, err
-		}
+		n, done, err := s.backfillWindow(ctx, cursor, toUnix)
 		inserted += n
-		if len(got.Tracks) == 0 {
-			cursor.BackfillDone = true
-			return inserted, nil
-		}
-		oldest := oldestUnix(got.Tracks)
-		if oldest <= 0 || oldest >= toUnix || (fromUnix > 0 && oldest <= fromUnix) {
-			cursor.OldestUnix = oldest
-			cursor.BackfillDone = true
-			return inserted, nil
-		}
-		toUnix = oldest
-		cursor.OldestUnix = oldest
-		if err := s.Ledger.SaveSyncCursor(*cursor); err != nil {
+		if err != nil || done {
 			return inserted, err
 		}
+		toUnix = cursor.OldestUnix
 		s.Sleep(s.PageGap)
 	}
 	return inserted, nil
+}
+
+// Last.fm 500s on multi-year from/to; each pass covers at most 30 days.
+func (s *Syncer) backfillWindow(ctx context.Context, cursor *store.SyncCursor, toUnix int64) (int, bool, error) {
+	fromUnix := windowFrom(toUnix, cursor.RegisteredUnix)
+	if toUnix > 0 && fromUnix >= toUnix {
+		cursor.BackfillDone = true
+		return 0, true, s.Ledger.SaveSyncCursor(*cursor)
+	}
+	n, err := s.pullPages(ctx, fromUnix, toUnix)
+	if err != nil {
+		return 0, false, fmt.Errorf("backfill %d..%d: %w", fromUnix, toUnix, err)
+	}
+	cursor.OldestUnix = fromUnix
+	if fromUnix <= cursor.RegisteredUnix {
+		cursor.BackfillDone = true
+	}
+	if err := s.Ledger.SaveSyncCursor(*cursor); err != nil {
+		return n, cursor.BackfillDone, err
+	}
+	return n, cursor.BackfillDone, nil
 }
 
 func (s *Syncer) backfillTo(cursor store.SyncCursor) (int64, error) {
@@ -196,15 +199,13 @@ func (s *Syncer) backfillTo(cursor store.SyncCursor) (int64, error) {
 	return s.Now().Unix() + 1, nil
 }
 
-func oldestUnix(tracks []lastfm.Track) int64 {
-	var oldest int64
-	for _, tr := range tracks {
-		if tr.PlayedUnix <= 0 {
-			continue
-		}
-		if oldest == 0 || tr.PlayedUnix < oldest {
-			oldest = tr.PlayedUnix
-		}
+func windowFrom(toUnix, registered int64) int64 {
+	from := toUnix - int64(backfillWindow/time.Second)
+	if registered > 0 && from < registered {
+		return registered
 	}
-	return oldest
+	if from < 0 {
+		return 0
+	}
+	return from
 }

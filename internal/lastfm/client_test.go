@@ -159,6 +159,31 @@ func TestClient_SurfacesLastfmError(t *testing.T) {
 	}
 }
 
+func TestClient_RetriesHTTP500ThenSucceeds(t *testing.T) {
+	n := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n++
+		if n < 3 {
+			w.WriteHeader(http.StatusInternalServerError)
+			io.WriteString(w, "nope")
+			return
+		}
+		fmt.Fprint(w, `{"user":{"name":"puppe90","playcount":"1","registered":{"unixtime":"1"}}}`)
+	}))
+	t.Cleanup(srv.Close)
+	c := New(Config{APIKey: "k", User: "puppe90", BaseURL: srv.URL}, srv.Client())
+	user, err := c.User(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if user.Name != "puppe90" {
+		t.Fatalf("user = %+v", user)
+	}
+	if n != 3 {
+		t.Fatalf("attempts = %d, want 3", n)
+	}
+}
+
 func TestClient_HTTPStatusError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadGateway)
