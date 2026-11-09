@@ -1,0 +1,27 @@
+{{ define "content" }}
+{{ if .Page.Error }}
+<p class="mt-10 border border-dashed border-copper/50 px-5 py-10 text-center text-foam/70">{{ .Page.Error }}</p>
+{{ else }}
+<section class="mt-8">
+  <h2 class="font-serif text-3xl italic">Álbuns</h2>
+  {{ if eq (len .Page.Albums) 0 }}
+  <p class="mt-8 text-foam/55">Nenhum álbum neste recorte.</p>
+  {{ else }}
+  <ol class="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+    {{ range .Page.Albums }}
+    <li>
+      {{ if .Image }}
+      <img src="{{ .Image }}" alt="" class="aspect-square w-full object-cover" />
+      {{ else }}
+      <div class="listen-vinyl aspect-square w-full" aria-hidden="true"></div>
+      {{ end }}
+      <p class="mt-2 truncate font-serif text-lg italic">{{ if .URL }}<a href="{{ .URL }}" data-amarra-skip>{{ .Name }}</a>{{ else }}{{ .Name }}{{ end }}</p>
+      <p class="truncate text-sm text-foam/60">{{ .Artist }}</p>
+      <p class="font-mono text-[11px] text-foam/40">{{ .Playcount }} plays</p>
+    </li>
+    {{ end }}
+  </ol>
+  {{ end }}
+</section>
+{{ end }}
+{{ end }}

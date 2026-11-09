@@ -1,0 +1,24 @@
+{{ define "content" }}
+{{ if .Page.Error }}
+<p class="mt-10 border border-dashed border-copper/50 px-5 py-10 text-center text-foam/70">{{ .Page.Error }}</p>
+{{ else }}
+<section class="mt-8">
+  <h2 class="font-serif text-3xl italic">Artistas</h2>
+  {{ if eq (len .Page.Artists) 0 }}
+  <p class="mt-8 text-foam/55">Nenhum artista neste recorte.</p>
+  {{ else }}
+  <ol class="mt-6 grid gap-3 sm:grid-cols-2">
+    {{ range .Page.Artists }}
+    <li class="flex items-center gap-4 border border-foam/10 bg-tide/30 p-3">
+      <span class="w-8 font-mono text-xs text-foam/40">{{ .Rank }}</span>
+      <div class="min-w-0 flex-1">
+        <p class="truncate font-serif text-xl italic">{{ if .URL }}<a href="{{ .URL }}" data-amarra-skip>{{ .Name }}</a>{{ else }}{{ .Name }}{{ end }}</p>
+        <p class="font-mono text-[11px] text-foam/45">{{ .Playcount }} plays</p>
+      </div>
+    </li>
+    {{ end }}
+  </ol>
+  {{ end }}
+</section>
+{{ end }}
+{{ end }}

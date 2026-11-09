@@ -1,0 +1,24 @@
+{{ define "content" }}
+{{ if .Page.Error }}
+<p class="mt-10 border border-dashed border-copper/50 px-5 py-10 text-center text-foam/70">{{ .Page.Error }}</p>
+{{ else }}
+<section class="mt-8">
+  <h2 class="font-serif text-3xl italic">Amadas</h2>
+  {{ if eq (len .Page.Tracks) 0 }}
+  <p class="mt-8 text-foam/55">Nenhuma faixa amada nesta página.</p>
+  {{ else }}
+  <ol class="mt-4 divide-y divide-foam/10">
+    {{ range .Page.Tracks }}
+    <li class="flex items-center gap-4 py-3">
+      <div class="min-w-0 flex-1">
+        <p class="truncate font-serif text-lg italic">{{ if .URL }}<a href="{{ .URL }}" data-amarra-skip>{{ .Name }}</a>{{ else }}{{ .Name }}{{ end }}</p>
+        <p class="truncate text-sm text-foam/60">{{ .Artist }}</p>
+      </div>
+      {{ if .When }}<time class="font-mono text-[11px] text-foam/40">{{ .When }}</time>{{ end }}
+    </li>
+    {{ end }}
+  </ol>
+  {{ end }}
+</section>
+{{ end }}
+{{ end }}

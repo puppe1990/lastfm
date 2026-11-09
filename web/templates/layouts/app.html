@@ -1,0 +1,116 @@
+{{ define "title" }}Ouvindo{{ end }}
+{{ define "description" }}O caderno Last.fm de puppe90.{{ end }}
+{{ define "app" }}
+<!doctype html>
+<html lang="{{ htmlLang }}" data-amarra-layout="app">
+  <head>
+    <meta charset="UTF-8" />
+    <script nonce="{{ .CSPNonce }}">
+      try {
+        if (localStorage.getItem("amarra-theme") === "light") document.documentElement.classList.add("light");
+      } catch (e) {}
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    {{ if .CSRFToken }}<meta name="csrf-token" content="{{ .CSRFToken }}" />{{ end }}
+    <title>{{ if .Title }}{{ .Title }} · Ouvindo{{ else }}Ouvindo{{ end }}</title>
+    <meta name="description" content="O caderno Last.fm de puppe90 — o que está tocando, o que tocou, os topos." />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Ouvindo" />
+    <meta property="og:title" content="{{ if .Title }}{{ .Title }}{{ else }}Ouvindo{{ end }}" />
+    <meta property="og:description" content="O caderno Last.fm de puppe90." />
+    <meta property="og:image" content="{{ absURL .Site.AppURL "/static/og.jpg" }}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="{{ ogLocale }}" />
+    <meta property="og:url" content="{{ absURL .Site.AppURL "/" }}" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Ouvindo" />
+    <meta name="twitter:description" content="O caderno Last.fm de puppe90." />
+    <meta name="twitter:image" content="{{ absURL .Site.AppURL "/static/og.jpg" }}" />
+    <link rel="stylesheet" href="/static/css/styles.css" />
+    <link rel="manifest" href="/static/manifest.webmanifest" />
+    <meta name="theme-color" content="#0c0a09" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Ouvindo" />
+    <link rel="apple-touch-icon" href="/static/icons/icon.png" />
+    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
+    <script src="/static/js/amarra.js" defer></script>
+  </head>
+  <body class="listen-body min-h-screen bg-ink font-sans antialiased text-foam" data-amarra-shell="listen">
+    <div id="amarra-toast-host" aria-live="polite"></div>
+    <main id="amarra-main" class="relative mx-auto flex min-h-screen max-w-6xl flex-col px-4 py-6 sm:px-8">
+      <.flash />
+      <header class="flex flex-col gap-6 border-b border-foam/15 pb-5 sm:flex-row sm:items-end sm:justify-between">
+        <a href="/" class="group">
+          <p class="font-mono text-[11px] uppercase tracking-[0.32em] text-copper">Last.fm · puppe90</p>
+          <h1 class="mt-1 font-serif text-[clamp(2rem,6vw,3.4rem)] italic leading-[0.9] text-foam">Ouvindo</h1>
+        </a>
+        <div class="flex flex-wrap items-center gap-2">
+          <nav amarra-hook="nav" data-amarra-nav-on="bg-copper text-ink" data-amarra-nav-off="text-foam/70 hover:text-foam" class="flex flex-wrap gap-1 font-mono text-[11px] uppercase tracking-[0.18em]">
+            <a href="/" class="rounded-sm px-3 py-2 {{ if eq .ActiveNav "home" }}bg-copper text-ink{{ else }}text-foam/70 hover:text-foam{{ end }}"{{ if eq .ActiveNav "home" }} aria-current="page"{{ end }}>Início</a>
+            <a href="/artistas" class="rounded-sm px-3 py-2 {{ if eq .ActiveNav "artists" }}bg-copper text-ink{{ else }}text-foam/70 hover:text-foam{{ end }}"{{ if eq .ActiveNav "artists" }} aria-current="page"{{ end }}>Artistas</a>
+            <a href="/albuns" class="rounded-sm px-3 py-2 {{ if eq .ActiveNav "albums" }}bg-copper text-ink{{ else }}text-foam/70 hover:text-foam{{ end }}"{{ if eq .ActiveNav "albums" }} aria-current="page"{{ end }}>Álbuns</a>
+            <a href="/faixas" class="rounded-sm px-3 py-2 {{ if eq .ActiveNav "tracks" }}bg-copper text-ink{{ else }}text-foam/70 hover:text-foam{{ end }}"{{ if eq .ActiveNav "tracks" }} aria-current="page"{{ end }}>Faixas</a>
+            <a href="/amadas" class="rounded-sm px-3 py-2 {{ if eq .ActiveNav "loved" }}bg-copper text-ink{{ else }}text-foam/70 hover:text-foam{{ end }}"{{ if eq .ActiveNav "loved" }} aria-current="page"{{ end }}>Amadas</a>
+          </nav>
+          <button type="button" class="inline-flex h-8 items-center gap-2 rounded-sm px-2 text-foam/70 hover:text-foam" amarra-hook="theme" aria-pressed="false" data-amarra-theme-color="#f3ead8" data-amarra-theme-color-off="#0c0a09" data-amarra-theme-on-label="{{ t "layout.theme_dark" }}" data-amarra-theme-off-label="{{ t "layout.theme_light" }}">
+            <span class="[html.light_&]:hidden font-mono text-[11px] uppercase tracking-wider">claro</span>
+            <span class="hidden [html.light_&]:block font-mono text-[11px] uppercase tracking-wider">escuro</span>
+          </button>
+        </div>
+      </header>
+      {{ if .ShowPeriod }}
+      <div class="mt-5 flex flex-wrap gap-2">
+        {{ range .Periods }}
+        <a href="{{ $.Page.Path }}?period={{ .ID }}" class="font-mono text-[11px] uppercase tracking-[0.16em] {{ if .Active }}bg-copper px-3 py-1.5 text-ink{{ else }}border border-foam/20 px-3 py-1.5 text-foam/60 hover:border-copper hover:text-foam{{ end }}">{{ .Label }}</a>
+        {{ end }}
+      </div>
+      {{ end }}
+      {{ template "content" . }}
+      {{ if or .Page.PrevPage .Page.NextPage }}
+      <nav class="mt-10 flex items-center justify-between border-t border-foam/15 pt-4 font-mono text-[11px] uppercase tracking-[0.18em]">
+        {{ if .Page.PrevPage }}
+        <a class="text-copper hover:text-foam" href="{{ .Page.Path }}?{{ if .Page.Period }}period={{ .Page.Period }}&{{ end }}page={{ .Page.PrevPage }}">← anterior</a>
+        {{ else }}<span></span>{{ end }}
+        {{ if .Page.NextPage }}
+        <a class="text-copper hover:text-foam" href="{{ .Page.Path }}?{{ if .Page.Period }}period={{ .Page.Period }}&{{ end }}page={{ .Page.NextPage }}">próxima →</a>
+        {{ end }}
+      </nav>
+      {{ end }}
+      <footer class="mt-auto pt-16 pb-4 font-mono text-[11px] uppercase tracking-[0.2em] text-foam/40">
+        Caderno Last.fm · dados públicos de puppe90
+      </footer>
+    </main>
+    {{ .Outlets }}
+    {{ if eq .Site.Env "development" }}
+    <script nonce="{{ .CSPNonce }}">
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          regs.forEach(function (r) { r.unregister(); });
+        });
+      }
+      (function () {
+        if (!("EventSource" in window)) return;
+        if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) return;
+        var es = new EventSource("/_dev/reload");
+        es.addEventListener("reload", function () { location.reload(); });
+        es.addEventListener("boot", function (ev) {
+          var seen = sessionStorage.getItem("amarra-dev-boot");
+          sessionStorage.setItem("amarra-dev-boot", ev.data);
+          if (seen && seen !== ev.data) location.reload();
+        });
+      })();
+    </script>
+    {{ else }}
+    <script nonce="{{ .CSPNonce }}">
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/static/js/sw.js", { scope: "/" });
+      }
+    </script>
+    {{ end }}
+  </body>
+</html>
+{{ end }}

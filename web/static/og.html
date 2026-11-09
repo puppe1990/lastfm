@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<title>Ouvindo OG</title>
+<style>
+@font-face{
+  font-family:"Instrument Serif";
+  src:url("fonts/instrument-serif-400i.woff2") format("woff2");
+  font-style:italic;
+}
+@font-face{
+  font-family:"IBM Plex Mono";
+  src:url("fonts/ibm-plex-mono-400.woff2") format("woff2");
+}
+html,body{margin:0;background:#0c0a09}
+#og{
+  width:1200px;height:630px;position:relative;overflow:hidden;
+  background:#0c0a09;
+  color:#f3ead8;
+}
+.rings{
+  position:absolute;right:-80px;top:-90px;width:720px;height:720px;border-radius:50%;
+  background:
+    radial-gradient(circle at 50% 50%, #f3ead8 0 18px, #d51007 19px 78px, #141110 79px 80px,
+      transparent 81px 110px, #1c1412 111px 112px, transparent 113px 150px,
+      #1c1412 151px 152px, transparent 153px 200px, #1c1412 201px 202px,
+      transparent 203px 260px, #1c1412 261px 262px, transparent 263px);
+  box-shadow:0 0 0 1px #d51007;
+}
+.copy{position:absolute;left:72px;top:168px}
+.kicker{
+  font-family:"IBM Plex Mono", ui-monospace, monospace;
+  font-size:14px;letter-spacing:0.32em;text-transform:uppercase;color:#d51007;
+}
+h1{
+  margin:18px 0 0;font-family:"Instrument Serif", Palatino, serif;
+  font-style:italic;font-weight:400;font-size:128px;line-height:0.86;color:#f3ead8;
+}
+.sub{
+  margin-top:28px;font-family:"IBM Plex Mono", ui-monospace, monospace;
+  font-size:16px;letter-spacing:0.22em;text-transform:uppercase;color:#f3ead880;
+}
+</style>
+</head>
+<body>
+<div id="og">
+  <div class="rings" aria-hidden="true"></div>
+  <div class="copy">
+    <p class="kicker">Last.fm · puppe90</p>
+    <h1>Ouvindo</h1>
+    <p class="sub">caderno de scrobbles</p>
+  </div>
+</div>
+</body>
+</html>

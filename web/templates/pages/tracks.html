@@ -1,0 +1,29 @@
+{{ define "content" }}
+{{ if .Page.Error }}
+<p class="mt-10 border border-dashed border-copper/50 px-5 py-10 text-center text-foam/70">{{ .Page.Error }}</p>
+{{ else }}
+<section class="mt-8">
+  <h2 class="font-serif text-3xl italic">Faixas</h2>
+  {{ if eq (len .Page.Tracks) 0 }}
+  <p class="mt-8 text-foam/55">Nenhuma faixa neste recorte.</p>
+  {{ else }}
+  <ol class="mt-4 divide-y divide-foam/10">
+    {{ range .Page.Tracks }}
+    <li class="flex items-center gap-4 py-3">
+      {{ if .Image }}
+      <img src="{{ .Image }}" alt="" class="h-12 w-12 flex-shrink-0 object-cover" />
+      {{ else }}
+      <div class="listen-vinyl h-12 w-12 flex-shrink-0" aria-hidden="true"></div>
+      {{ end }}
+      <div class="min-w-0 flex-1">
+        <p class="truncate font-serif text-lg italic">{{ if .URL }}<a href="{{ .URL }}" data-amarra-skip>{{ .Name }}</a>{{ else }}{{ .Name }}{{ end }}</p>
+        <p class="truncate text-sm text-foam/60">{{ .Artist }}</p>
+      </div>
+      {{ if ne .Playcount "0" }}<p class="font-mono text-[11px] text-foam/40">{{ .Playcount }}</p>{{ end }}
+    </li>
+    {{ end }}
+  </ol>
+  {{ end }}
+</section>
+{{ end }}
+{{ end }}
