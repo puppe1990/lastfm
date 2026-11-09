@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/puppe1990/amarra-cais/pkg/cais/devlog"
 	"github.com/puppe1990/amarra-cais/pkg/cais/session"
@@ -23,6 +24,7 @@ type Store interface {
 	UpsertScrobbles(tracks []lastfm.Track) (int, error)
 	ListScrobblesBetween(fromUnix, toUnix int64) ([]lastfm.Track, error)
 	TopArtistsBetween(fromUnix, toUnix int64, limit int) ([]lastfm.Artist, error)
+	TopAlbumsByYear(loc *time.Location, perYear int) ([]YearAlbums, error)
 	ScrobbleBounds() (minUnix, maxUnix int64, count int, err error)
 	LoadSyncCursor() (SyncCursor, error)
 	SaveSyncCursor(SyncCursor) error

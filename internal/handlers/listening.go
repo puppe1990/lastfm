@@ -79,6 +79,19 @@ func (h *ListeningHandler) Artists(w http.ResponseWriter, r *http.Request) {
 	h.write(w, r, "artists", h.t(r, "artists.title"), "artists", http.StatusOK, presentArtists(chart, period, pageN))
 }
 
+func (h *ListeningHandler) Years(w http.ResponseWriter, r *http.Request) {
+	var charts []store.YearAlbums
+	if h.ledger != nil {
+		got, err := h.ledger.TopAlbumsByYear(nil, 10)
+		if err != nil {
+			h.fail(w, r, "years", err)
+			return
+		}
+		charts = got
+	}
+	h.write(w, r, "years", h.t(r, "years.title"), "years", http.StatusOK, presentYears(charts))
+}
+
 func (h *ListeningHandler) Albums(w http.ResponseWriter, r *http.Request) {
 	period := lastfm.NormalizePeriod(r.URL.Query().Get("period"))
 	pageN := queryPage(r)

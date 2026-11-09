@@ -44,6 +44,7 @@ var enMessages = map[string]string{
 
 	"artists.title": "Artists",
 	"albums.title":  "Albums",
+	"years.title":   "Years",
 	"tracks.title":  "Tracks",
 	"loved.title":   "Loved",
 	"listen.error":  "could not talk to Last.fm",

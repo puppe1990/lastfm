@@ -44,6 +44,7 @@ var ptMessages = map[string]string{
 
 	"artists.title": "Artistas",
 	"albums.title":  "Álbuns",
+	"years.title":   "Anos",
 	"tracks.title":  "Faixas",
 	"loved.title":   "Amadas",
 	"listen.error":  "não deu para falar com o Last.fm",

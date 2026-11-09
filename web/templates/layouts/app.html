@@ -53,6 +53,7 @@
             <a href="/" class="rounded-sm px-3 py-2 {{ if eq .ActiveNav "home" }}bg-copper text-ink{{ else }}text-foam/70 hover:text-foam{{ end }}"{{ if eq .ActiveNav "home" }} aria-current="page"{{ end }}>Início</a>
             <a href="/artistas" class="rounded-sm px-3 py-2 {{ if eq .ActiveNav "artists" }}bg-copper text-ink{{ else }}text-foam/70 hover:text-foam{{ end }}"{{ if eq .ActiveNav "artists" }} aria-current="page"{{ end }}>Artistas</a>
             <a href="/albuns" class="rounded-sm px-3 py-2 {{ if eq .ActiveNav "albums" }}bg-copper text-ink{{ else }}text-foam/70 hover:text-foam{{ end }}"{{ if eq .ActiveNav "albums" }} aria-current="page"{{ end }}>Álbuns</a>
+            <a href="/anos" class="rounded-sm px-3 py-2 {{ if eq .ActiveNav "years" }}bg-copper text-ink{{ else }}text-foam/70 hover:text-foam{{ end }}"{{ if eq .ActiveNav "years" }} aria-current="page"{{ end }}>Anos</a>
             <a href="/faixas" class="rounded-sm px-3 py-2 {{ if eq .ActiveNav "tracks" }}bg-copper text-ink{{ else }}text-foam/70 hover:text-foam{{ end }}"{{ if eq .ActiveNav "tracks" }} aria-current="page"{{ end }}>Faixas</a>
             <a href="/amadas" class="rounded-sm px-3 py-2 {{ if eq .ActiveNav "loved" }}bg-copper text-ink{{ else }}text-foam/70 hover:text-foam{{ end }}"{{ if eq .ActiveNav "loved" }} aria-current="page"{{ end }}>Amadas</a>
           </nav>

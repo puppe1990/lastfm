@@ -1,0 +1,39 @@
+{{ define "content" }}
+{{ if .Page.Error }}
+<p class="mt-10 border border-dashed border-copper/50 px-5 py-10 text-center text-foam/70">{{ .Page.Error }}</p>
+{{ else }}
+<section class="mt-8">
+  <h2 class="font-serif text-3xl italic">Anos</h2>
+  <p class="mt-2 font-mono text-[11px] uppercase tracking-[0.18em] text-foam/45">álbuns mais ouvidos por ano</p>
+  {{ if eq (len .Page.Years) 0 }}
+  <p class="mt-8 text-foam/55">Nenhum álbum com ano no caderno.</p>
+  {{ else }}
+  <nav class="mt-6 flex flex-wrap gap-2" aria-label="Anos">
+    {{ range .Page.Years }}
+    <a href="#ano-{{ .Year }}" data-amarra-skip class="font-mono text-[11px] uppercase tracking-[0.16em] border border-foam/20 px-3 py-1.5 text-foam/60 hover:border-copper hover:text-foam">{{ .Year }}</a>
+    {{ end }}
+  </nav>
+  {{ range .Page.Years }}
+  <section id="ano-{{ .Year }}" class="mt-12">
+    <h3 class="font-serif text-4xl italic text-copper">{{ .Year }}</h3>
+    <ol class="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+      {{ range .Albums }}
+      <li>
+        {{ if .Image }}
+        <img src="{{ .Image }}" alt="" class="aspect-square w-full object-cover" />
+        {{ else }}
+        <div class="listen-vinyl aspect-square w-full" aria-hidden="true"></div>
+        {{ end }}
+        <p class="mt-2 font-mono text-[11px] text-foam/40">{{ .Rank }}</p>
+        <p class="truncate font-serif text-lg italic">{{ if .URL }}<a href="{{ .URL }}" data-amarra-skip>{{ .Name }}</a>{{ else }}{{ .Name }}{{ end }}</p>
+        <p class="truncate text-sm text-foam/60">{{ .Artist }}</p>
+        <p class="font-mono text-[11px] text-foam/40">{{ .Playcount }} plays</p>
+      </li>
+      {{ end }}
+    </ol>
+  </section>
+  {{ end }}
+  {{ end }}
+</section>
+{{ end }}
+{{ end }}

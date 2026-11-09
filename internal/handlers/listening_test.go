@@ -275,6 +275,50 @@ func TestArtists_ListsTopAndKeepsPeriod(t *testing.T) {
 	}
 }
 
+func TestYears_ListsTopAlbumsPerYear(t *testing.T) {
+	loc, err := time.LoadLocation("America/Sao_Paulo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := setupTestStore(t)
+	if _, err := s.UpsertScrobbles([]lastfm.Track{
+		{Name: "Bleed", Artist: "Meshuggah", Album: "obZen", PlayedUnix: time.Date(2024, 6, 1, 12, 0, 0, 0, loc).Unix()},
+		{Name: "Bleed", Artist: "Meshuggah", Album: "obZen", PlayedUnix: time.Date(2024, 6, 1, 13, 0, 0, 0, loc).Unix()},
+		{Name: "Ghost", Artist: "Opeth", Album: "Blackwater Park", PlayedUnix: time.Date(2023, 6, 1, 12, 0, 0, 0, loc).Unix()},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	h := newListening(t, seedLibrary(t))
+	h.ledger = s
+	rr := httptest.NewRecorder()
+	h.Years(rr, httptest.NewRequest(http.MethodGet, "/anos", nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	body := rr.Body.String()
+	for _, want := range []string{"2024", "obZen", "2023", "Blackwater Park", `href="#ano-2024"`, `href="/anos"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("missing %q", want)
+		}
+	}
+	if strings.Contains(body, seedLibrary(t).albums.Albums[0].Name) {
+		t.Fatal("year page should read the ledger, not Last.fm top albums")
+	}
+}
+
+func TestYears_EmptyLedger(t *testing.T) {
+	h := newListening(t, seedLibrary(t))
+	h.ledger = setupTestStore(t)
+	rr := httptest.NewRecorder()
+	h.Years(rr, httptest.NewRequest(http.MethodGet, "/anos", nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d", rr.Code)
+	}
+	if !strings.Contains(rr.Body.String(), "Nenhum álbum") {
+		t.Fatalf("empty = %s", rr.Body.String())
+	}
+}
+
 func TestAlbums_ListsTop(t *testing.T) {
 	lib := seedLibrary(t)
 	h := newListening(t, lib)

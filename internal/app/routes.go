@@ -12,6 +12,7 @@ func registerRoutes(r *cais.Router, deps Deps, cfg cais.Config) {
 	r.Get("/", listen.Home)
 	r.Get("/artistas", listen.Artists)
 	r.Get("/albuns", listen.Albums)
+	r.Get("/anos", listen.Years)
 	r.Get("/faixas", listen.Tracks)
 	r.Get("/amadas", listen.Loved)
 	r.Get("/robots.txt", listen.Robots)

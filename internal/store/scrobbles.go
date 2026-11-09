@@ -3,10 +3,27 @@ package store
 import (
 	"database/sql"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/puppe1990/lastfm/internal/lastfm"
 )
+
+// YearAlbums is the top albums of one BRT calendar year.
+type YearAlbums struct {
+	Year   int
+	Albums []lastfm.Album
+}
+
+type albumKey struct {
+	artist string
+	album  string
+}
+
+type albumAcc struct {
+	n     int
+	image string
+}
 
 // SyncCursor is the Last.fm catch-up watermark for one profile.
 type SyncCursor struct {
@@ -101,6 +118,111 @@ LIMIT ?`, fromUnix, toUnix, limit)
 		out = append(out, a)
 	}
 	return out, rows.Err()
+}
+
+func (s *SQLiteStore) TopAlbumsByYear(loc *time.Location, perYear int) ([]YearAlbums, error) {
+	if perYear < 1 {
+		perYear = 10
+	}
+	loc = brtLocation(loc)
+	rows, err := s.db.Raw().Query(`
+SELECT album, artist, played_unix, image
+FROM scrobbles
+WHERE TRIM(album) != ''`)
+	if err != nil {
+		return nil, fmt.Errorf("album years: %w", err)
+	}
+	defer rows.Close()
+
+	grouped := map[int]map[albumKey]*albumAcc{}
+	for rows.Next() {
+		var album, artist, image string
+		var unix int64
+		if err := rows.Scan(&album, &artist, &unix, &image); err != nil {
+			return nil, fmt.Errorf("scan album year: %w", err)
+		}
+		year := time.Unix(unix, 0).In(loc).Year()
+		addAlbumPlay(grouped, year, artist, album, image)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return rankAlbumYears(grouped, perYear), nil
+}
+
+func addAlbumPlay(grouped map[int]map[albumKey]*albumAcc, year int, artist, album, image string) {
+	byAlbum, ok := grouped[year]
+	if !ok {
+		byAlbum = map[albumKey]*albumAcc{}
+		grouped[year] = byAlbum
+	}
+	key := albumKey{artist: artist, album: album}
+	acc, ok := byAlbum[key]
+	if !ok {
+		acc = &albumAcc{}
+		byAlbum[key] = acc
+	}
+	acc.n++
+	if acc.image == "" && image != "" {
+		acc.image = image
+	}
+}
+
+func rankAlbumYears(grouped map[int]map[albumKey]*albumAcc, perYear int) []YearAlbums {
+	years := make([]int, 0, len(grouped))
+	for y := range grouped {
+		years = append(years, y)
+	}
+	sort.Sort(sort.Reverse(sort.IntSlice(years)))
+	out := make([]YearAlbums, 0, len(years))
+	for _, y := range years {
+		out = append(out, YearAlbums{Year: y, Albums: rankYearAlbums(grouped[y], perYear)})
+	}
+	return out
+}
+
+func rankYearAlbums(byAlbum map[albumKey]*albumAcc, perYear int) []lastfm.Album {
+	albums := make([]lastfm.Album, 0, len(byAlbum))
+	for key, acc := range byAlbum {
+		albums = append(albums, lastfm.Album{
+			Name:      key.album,
+			Artist:    key.artist,
+			URL:       lastfmAlbumURL(key.artist, key.album),
+			Image:     acc.image,
+			Playcount: acc.n,
+		})
+	}
+	sort.Slice(albums, func(i, j int) bool {
+		if albums[i].Playcount != albums[j].Playcount {
+			return albums[i].Playcount > albums[j].Playcount
+		}
+		if albums[i].Name != albums[j].Name {
+			return albums[i].Name < albums[j].Name
+		}
+		return albums[i].Artist < albums[j].Artist
+	})
+	if len(albums) > perYear {
+		albums = albums[:perYear]
+	}
+	for i := range albums {
+		albums[i].Rank = i + 1
+	}
+	return albums
+}
+
+func brtLocation(loc *time.Location) *time.Location {
+	if loc != nil {
+		return loc
+	}
+	loc, err := time.LoadLocation("America/Sao_Paulo")
+	if err != nil {
+		return time.FixedZone("BRT", -3*3600)
+	}
+	return loc
+}
+
+func lastfmAlbumURL(artist, album string) string {
+	return "https://www.last.fm/music/" + lastfmArtistPath(artist) + "/" + lastfmArtistPath(album)
 }
 
 func (s *SQLiteStore) ScrobbleBounds() (minUnix, maxUnix int64, count int, err error) {

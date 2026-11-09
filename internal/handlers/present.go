@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/puppe1990/lastfm/internal/lastfm"
+	"github.com/puppe1990/lastfm/internal/store"
 )
 
 type listenPage struct {
@@ -17,6 +18,7 @@ type listenPage struct {
 	Recent      []trackView
 	Artists     []artistView
 	Albums      []albumView
+	Years       []yearView
 	Tracks      []trackView
 	Days        []lastfm.CountBar
 	Hours       []lastfm.CountBar
@@ -59,6 +61,11 @@ type albumView struct {
 	Image     string
 	Playcount string
 	Rank      int
+}
+
+type yearView struct {
+	Year   int
+	Albums []albumView
 }
 
 type periodChip struct {
@@ -110,19 +117,8 @@ func presentArtists(chart lastfm.ArtistPage, period string, pageN int) listenPag
 }
 
 func presentAlbums(chart lastfm.AlbumPage, period string, pageN int) listenPage {
-	items := make([]albumView, 0, len(chart.Albums))
-	for _, a := range chart.Albums {
-		items = append(items, albumView{
-			Name:      a.Name,
-			Artist:    a.Artist,
-			URL:       a.URL,
-			Image:     a.Image,
-			Playcount: lastfm.FormatPlaycount(a.Playcount),
-			Rank:      a.Rank,
-		})
-	}
 	page := listenPage{
-		Albums:     items,
+		Albums:     presentAlbumList(chart.Albums),
 		Period:     period,
 		Periods:    periodChips(period),
 		ShowPeriod: true,
@@ -132,6 +128,29 @@ func presentAlbums(chart lastfm.AlbumPage, period string, pageN int) listenPage 
 	}
 	fillPager(&page)
 	return page
+}
+
+func presentYears(charts []store.YearAlbums) listenPage {
+	years := make([]yearView, 0, len(charts))
+	for _, chart := range charts {
+		years = append(years, yearView{Year: chart.Year, Albums: presentAlbumList(chart.Albums)})
+	}
+	return listenPage{Years: years, Path: "/anos"}
+}
+
+func presentAlbumList(albums []lastfm.Album) []albumView {
+	items := make([]albumView, 0, len(albums))
+	for _, a := range albums {
+		items = append(items, albumView{
+			Name:      a.Name,
+			Artist:    a.Artist,
+			URL:       a.URL,
+			Image:     a.Image,
+			Playcount: lastfm.FormatPlaycount(a.Playcount),
+			Rank:      a.Rank,
+		})
+	}
+	return items
 }
 
 func presentTracks(chart lastfm.TrackPage, period string, pageN int) listenPage {
