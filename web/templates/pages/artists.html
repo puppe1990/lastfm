@@ -14,6 +14,11 @@
       <div class="min-w-0 flex-1">
         <p class="truncate font-serif text-xl italic">{{ if .URL }}<a href="{{ .URL }}" data-amarra-skip>{{ .Name }}</a>{{ else }}{{ .Name }}{{ end }}</p>
         <p class="font-mono text-[11px] text-foam/45">{{ .Playcount }} plays</p>
+        <svg class="listen-share mt-2 h-1.5 w-full" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true">
+          {{ if gt .BarPct 0 }}
+          <rect class="{{ if .Peak }}listen-bar-peak{{ else }}listen-bar{{ end }}" x="0" y="0" width="{{ .BarPct }}" height="8" />
+          {{ end }}
+        </svg>
       </div>
     </li>
     {{ end }}

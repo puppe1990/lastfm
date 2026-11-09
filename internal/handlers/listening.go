@@ -40,7 +40,12 @@ func (h *ListeningHandler) Home(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, r, "home", err)
 		return
 	}
-	h.write(w, r, "home", h.t(r, "home.title"), "home", http.StatusOK, presentHome(user, recent, pageN, h.clock()))
+	window, werr := h.lib.RecentTracks(r.Context(), 1, 200)
+	if werr != nil {
+		window = recent
+	}
+	week, _ := h.lib.TopArtists(r.Context(), "7day", 1, 8)
+	h.write(w, r, "home", h.t(r, "home.title"), "home", http.StatusOK, presentHome(user, recent, window, week, pageN, h.clock()))
 }
 
 func (h *ListeningHandler) Artists(w http.ResponseWriter, r *http.Request) {

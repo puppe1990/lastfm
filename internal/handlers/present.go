@@ -18,6 +18,8 @@ type listenPage struct {
 	Artists     []artistView
 	Albums      []albumView
 	Tracks      []trackView
+	Days        []lastfm.CountBar
+	Hours       []lastfm.CountBar
 	Period      string
 	Periods     []periodChip
 	ShowPeriod  bool
@@ -46,6 +48,8 @@ type artistView struct {
 	Image     string
 	Playcount string
 	Rank      int
+	BarPct    int
+	Peak      bool
 }
 
 type albumView struct {
@@ -63,7 +67,11 @@ type periodChip struct {
 	Active bool
 }
 
-func presentHome(user lastfm.User, recent lastfm.RecentPage, pageN int, now time.Time) listenPage {
+func presentHome(user lastfm.User, recent, window lastfm.RecentPage, week lastfm.ArtistPage, pageN int, now time.Time) listenPage {
+	scrobbles := window.Tracks
+	if len(scrobbles) == 0 {
+		scrobbles = recent.Tracks
+	}
 	page := listenPage{
 		User:        user,
 		Playcount:   lastfm.FormatPlaycount(user.Playcount),
@@ -72,6 +80,9 @@ func presentHome(user lastfm.User, recent lastfm.RecentPage, pageN int, now time
 		TrackCount:  lastfm.FormatPlaycount(user.TrackCount),
 		SinceYear:   lastfm.FormatRegisteredYear(user.RegisteredUnix),
 		Recent:      presentTrackList(recent.Tracks, now),
+		Days:        lastfm.ActivityDays(scrobbles, now, 7),
+		Hours:       lastfm.ClockHours(scrobbles, now),
+		Artists:     presentArtistBars(week.Artists),
 		Path:        "/",
 		PageN:       pageN,
 		TotalPages:  recent.TotalPages,
@@ -85,18 +96,8 @@ func presentHome(user lastfm.User, recent lastfm.RecentPage, pageN int, now time
 }
 
 func presentArtists(chart lastfm.ArtistPage, period string, pageN int) listenPage {
-	items := make([]artistView, 0, len(chart.Artists))
-	for _, a := range chart.Artists {
-		items = append(items, artistView{
-			Name:      a.Name,
-			URL:       a.URL,
-			Image:     a.Image,
-			Playcount: lastfm.FormatPlaycount(a.Playcount),
-			Rank:      a.Rank,
-		})
-	}
 	page := listenPage{
-		Artists:    items,
+		Artists:    presentArtistBars(chart.Artists),
 		Period:     period,
 		Periods:    periodChips(period),
 		ShowPeriod: true,
@@ -156,6 +157,27 @@ func presentLoved(chart lastfm.TrackPage, pageN int) listenPage {
 	}
 	fillPager(&page)
 	return page
+}
+
+func presentArtistBars(artists []lastfm.Artist) []artistView {
+	counts := make([]int, len(artists))
+	for i, a := range artists {
+		counts[i] = a.Playcount
+	}
+	pcts := lastfm.RelativePercents(counts)
+	items := make([]artistView, 0, len(artists))
+	for i, a := range artists {
+		items = append(items, artistView{
+			Name:      a.Name,
+			URL:       a.URL,
+			Image:     a.Image,
+			Playcount: lastfm.FormatPlaycount(a.Playcount),
+			Rank:      a.Rank,
+			BarPct:    pcts[i],
+			Peak:      pcts[i] == 100,
+		})
+	}
+	return items
 }
 
 func presentTrackList(tracks []lastfm.Track, now time.Time) []trackView {

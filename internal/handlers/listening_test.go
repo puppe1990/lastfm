@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/puppe1990/amarra-cais/pkg/cais"
 	"github.com/puppe1990/amarra-cais/pkg/cais/fakedata"
@@ -155,6 +156,34 @@ func TestHome_ShowsProfileNowPlayingAndRecent(t *testing.T) {
 	}
 }
 
+func TestHome_ShowsLastfmStyleCharts(t *testing.T) {
+	lib := seedLibrary(t)
+	loc := time.FixedZone("BRT", -3*3600)
+	now := time.Date(2026, 11, 9, 18, 0, 0, 0, loc)
+	lib.recent.Tracks = []lastfm.Track{
+		{Name: "Bleed", Artist: "Meshuggah", PlayedUnix: time.Date(2026, 11, 9, 17, 0, 0, 0, loc).Unix()},
+		{Name: "obZen", Artist: "Meshuggah", PlayedUnix: time.Date(2026, 11, 8, 12, 0, 0, 0, loc).Unix()},
+	}
+	lib.artists.Artists = []lastfm.Artist{
+		{Name: "Trivium", Playcount: 12, Rank: 1, URL: "https://www.last.fm/music/Trivium"},
+		{Name: "Meshuggah", Playcount: 6, Rank: 2},
+	}
+	h := newListening(t, lib)
+	h.now = func() time.Time { return now }
+
+	rr := httptest.NewRecorder()
+	h.Home(rr, httptest.NewRequest(http.MethodGet, "/", nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	body := rr.Body.String()
+	for _, want := range []string{"Atividade", "Relógio", "listen-activity", "listen-clock", "Trivium", "listen-share", ">seg<"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("missing %q", want)
+		}
+	}
+}
+
 func TestArtists_ListsTopAndKeepsPeriod(t *testing.T) {
 	lib := seedLibrary(t)
 	h := newListening(t, lib)
@@ -175,6 +204,9 @@ func TestArtists_ListsTopAndKeepsPeriod(t *testing.T) {
 	}
 	if !strings.Contains(body, `period=1month`) {
 		t.Fatal("period chips should keep 1month")
+	}
+	if !strings.Contains(body, "listen-share") {
+		t.Fatal("missing artist share bar")
 	}
 }
 

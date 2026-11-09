@@ -52,6 +52,69 @@
   {{ end }}
 </section>
 
+<section class="mt-12 grid gap-8 lg:grid-cols-2">
+  <div>
+    <div class="flex items-end justify-between border-b border-foam/20 pb-3">
+      <h2 class="font-serif text-3xl italic">Atividade</h2>
+      <p class="font-mono text-[10px] uppercase tracking-[0.22em] text-foam/45">7 dias</p>
+    </div>
+    <svg class="listen-activity mt-5 h-28 w-full" viewBox="0 0 70 100" preserveAspectRatio="none" role="img" aria-label="Scrobbles dos últimos 7 dias">
+      {{ range .Page.Days }}
+      {{ if gt .H 0 }}
+      <rect class="{{ if .Peak }}listen-bar-peak{{ else }}listen-bar{{ end }}" x="{{ .X }}" y="{{ .Y }}" width="{{ .W }}" height="{{ .H }}"><title>{{ .CountLabel }} scrobbles</title></rect>
+      {{ end }}
+      {{ end }}
+    </svg>
+    <div class="mt-2 flex">
+      {{ range .Page.Days }}
+      <span class="min-w-0 flex-1 text-center font-mono text-[10px] uppercase tracking-wider {{ if .Peak }}text-copper{{ else }}text-foam/40{{ end }}">{{ .Label }}</span>
+      {{ end }}
+    </div>
+  </div>
+  <div>
+    <div class="flex items-end justify-between border-b border-foam/20 pb-3">
+      <h2 class="font-serif text-3xl italic">Relógio</h2>
+      <p class="font-mono text-[10px] uppercase tracking-[0.22em] text-foam/45">hora do dia</p>
+    </div>
+    <svg class="listen-clock mt-5 h-28 w-full" viewBox="0 0 240 100" preserveAspectRatio="none" role="img" aria-label="Scrobbles por hora do dia">
+      {{ range .Page.Hours }}
+      {{ if gt .H 0 }}
+      <rect class="{{ if .Peak }}listen-bar-peak{{ else }}listen-bar{{ end }}" x="{{ .X }}" y="{{ .Y }}" width="{{ .W }}" height="{{ .H }}"><title>{{ .Label }}h · {{ .CountLabel }}</title></rect>
+      {{ end }}
+      {{ end }}
+    </svg>
+    <div class="mt-2 flex">
+      {{ range .Page.Hours }}
+      <span class="min-w-0 flex-1 text-center font-mono text-[9px] {{ if .Peak }}text-copper{{ else }}text-foam/35{{ end }}">{{ if or .Peak (eq .Label "0") (eq .Label "6") (eq .Label "12") (eq .Label "18") }}{{ .Label }}{{ end }}</span>
+      {{ end }}
+    </div>
+  </div>
+</section>
+
+{{ if .Page.Artists }}
+<section class="mt-12">
+  <div class="flex items-end justify-between border-b border-foam/20 pb-3">
+    <h2 class="font-serif text-3xl italic">Semana</h2>
+    <p class="font-mono text-[10px] uppercase tracking-[0.22em] text-foam/45">artistas</p>
+  </div>
+  <ol class="mt-4 grid gap-4 sm:grid-cols-2">
+    {{ range .Page.Artists }}
+    <li>
+      <div class="flex items-baseline justify-between gap-3">
+        <p class="truncate font-serif text-lg italic">{{ if .URL }}<a href="{{ .URL }}" data-amarra-skip>{{ .Name }}</a>{{ else }}{{ .Name }}{{ end }}</p>
+        <p class="font-mono text-[11px] text-foam/45">{{ .Playcount }}</p>
+      </div>
+      <svg class="listen-share mt-2 h-1.5 w-full" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true">
+        {{ if gt .BarPct 0 }}
+        <rect class="{{ if .Peak }}listen-bar-peak{{ else }}listen-bar{{ end }}" x="0" y="0" width="{{ .BarPct }}" height="8" />
+        {{ end }}
+      </svg>
+    </li>
+    {{ end }}
+  </ol>
+</section>
+{{ end }}
+
 <section class="mt-12">
   <div class="flex items-end justify-between border-b border-foam/20 pb-3">
     <h2 class="font-serif text-3xl italic">Recentes</h2>

@@ -437,6 +437,14 @@
     box-shadow: inset 0 0 0 1px rgb(var(--amarra-foam) / 0.12);
   }
 
+  .listen-bar {
+    fill: rgb(var(--amarra-copper) / 0.38);
+  }
+
+  .listen-bar-peak {
+    fill: rgb(var(--amarra-copper));
+  }
+
   .listen-now {
     position: relative;
   }
