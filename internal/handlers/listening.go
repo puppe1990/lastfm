@@ -89,7 +89,7 @@ func (h *ListeningHandler) Years(w http.ResponseWriter, r *http.Request) {
 		}
 		charts = got
 	}
-	h.write(w, r, "years", h.t(r, "years.title"), "years", http.StatusOK, presentYears(charts))
+	h.write(w, r, "years", h.t(r, "years.title"), "years", http.StatusOK, presentYears(charts, queryYear(r)))
 }
 
 func (h *ListeningHandler) Albums(w http.ResponseWriter, r *http.Request) {
@@ -164,5 +164,10 @@ func queryPage(r *http.Request) int {
 	if n < 1 {
 		return 1
 	}
+	return n
+}
+
+func queryYear(r *http.Request) int {
+	n, _ := strconv.Atoi(r.URL.Query().Get("year"))
 	return n
 }

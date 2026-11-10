@@ -276,6 +276,63 @@ func TestArtists_ListsTopAndKeepsPeriod(t *testing.T) {
 }
 
 func TestYears_ListsTopAlbumsPerYear(t *testing.T) {
+	h := newYearPage(t)
+	rr := httptest.NewRecorder()
+	h.Years(rr, httptest.NewRequest(http.MethodGet, "/anos", nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	body := rr.Body.String()
+	for _, want := range []string{"2024", "obZen", `href="/anos?year=2023"`, `href="/anos"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("missing %q", want)
+		}
+	}
+	if strings.Contains(body, "Blackwater Park") {
+		t.Fatal("default year should hide older albums")
+	}
+	if strings.Contains(body, `href="/anos?year=2025"`) {
+		t.Fatal("newest year has no next")
+	}
+}
+
+func TestYears_FiltersSelectedYear(t *testing.T) {
+	h := newYearPage(t)
+	rr := httptest.NewRecorder()
+	h.Years(rr, httptest.NewRequest(http.MethodGet, "/anos?year=2023", nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d", rr.Code)
+	}
+	body := rr.Body.String()
+	if !strings.Contains(body, "Blackwater Park") {
+		t.Fatal("missing 2023 album")
+	}
+	if strings.Contains(body, "obZen") {
+		t.Fatal("selected year should hide other years")
+	}
+	if !strings.Contains(body, `href="/anos?year=2024"`) {
+		t.Fatal("missing next year")
+	}
+}
+
+func TestYears_UnknownYearFallsBackToNewest(t *testing.T) {
+	h := newYearPage(t)
+	rr := httptest.NewRecorder()
+	h.Years(rr, httptest.NewRequest(http.MethodGet, "/anos?year=1999", nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d", rr.Code)
+	}
+	body := rr.Body.String()
+	if !strings.Contains(body, "obZen") {
+		t.Fatal("want newest year")
+	}
+	if strings.Contains(body, "Blackwater Park") {
+		t.Fatal("fallback should not show older year")
+	}
+}
+
+func newYearPage(t *testing.T) *ListeningHandler {
+	t.Helper()
 	loc, err := time.LoadLocation("America/Sao_Paulo")
 	if err != nil {
 		t.Fatal(err)
@@ -290,20 +347,7 @@ func TestYears_ListsTopAlbumsPerYear(t *testing.T) {
 	}
 	h := newListening(t, seedLibrary(t))
 	h.ledger = s
-	rr := httptest.NewRecorder()
-	h.Years(rr, httptest.NewRequest(http.MethodGet, "/anos", nil))
-	if rr.Code != http.StatusOK {
-		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
-	}
-	body := rr.Body.String()
-	for _, want := range []string{"2024", "obZen", "2023", "Blackwater Park", `href="#ano-2024"`, `href="/anos"`} {
-		if !strings.Contains(body, want) {
-			t.Errorf("missing %q", want)
-		}
-	}
-	if strings.Contains(body, seedLibrary(t).albums.Albums[0].Name) {
-		t.Fatal("year page should read the ledger, not Last.fm top albums")
-	}
+	return h
 }
 
 func TestYears_EmptyLedger(t *testing.T) {

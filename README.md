@@ -11,7 +11,7 @@ Live: https://lastfm.apps.gestaobem.com
 | `/` | `user.getInfo` + `user.getRecentTracks` |
 | `/artistas` | `user.getTopArtists` |
 | `/albuns` | `user.getTopAlbums` |
-| `/anos` | ledger SQLite — top 10 álbuns por ano BRT |
+| `/anos` | ledger SQLite — top 10 álbuns de um ano (`?year=`, setas anterior/próximo) |
 | `/faixas` | `user.getTopTracks` |
 | `/amadas` | `user.getLovedTracks` |
 

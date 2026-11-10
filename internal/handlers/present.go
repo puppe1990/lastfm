@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/puppe1990/lastfm/internal/lastfm"
@@ -19,6 +20,10 @@ type listenPage struct {
 	Artists     []artistView
 	Albums      []albumView
 	Years       []yearView
+	Year        int
+	PrevYear    int
+	NextYear    int
+	YearChips   []periodChip
 	Tracks      []trackView
 	Days        []lastfm.CountBar
 	Hours       []lastfm.CountBar
@@ -130,12 +135,43 @@ func presentAlbums(chart lastfm.AlbumPage, period string, pageN int) listenPage 
 	return page
 }
 
-func presentYears(charts []store.YearAlbums) listenPage {
-	years := make([]yearView, 0, len(charts))
-	for _, chart := range charts {
-		years = append(years, yearView{Year: chart.Year, Albums: presentAlbumList(chart.Albums)})
+func presentYears(charts []store.YearAlbums, wantYear int) listenPage {
+	if len(charts) == 0 {
+		return listenPage{Path: "/anos"}
 	}
-	return listenPage{Years: years, Path: "/anos"}
+	idx := pickYearIndex(charts, wantYear)
+	selected := charts[idx]
+	page := listenPage{
+		Years:     []yearView{{Year: selected.Year, Albums: presentAlbumList(selected.Albums)}},
+		Year:      selected.Year,
+		YearChips: yearChips(charts, selected.Year),
+		Path:      "/anos",
+	}
+	if idx+1 < len(charts) {
+		page.PrevYear = charts[idx+1].Year
+	}
+	if idx > 0 {
+		page.NextYear = charts[idx-1].Year
+	}
+	return page
+}
+
+func pickYearIndex(charts []store.YearAlbums, wantYear int) int {
+	for i, chart := range charts {
+		if chart.Year == wantYear {
+			return i
+		}
+	}
+	return 0
+}
+
+func yearChips(charts []store.YearAlbums, active int) []periodChip {
+	out := make([]periodChip, 0, len(charts))
+	for _, chart := range charts {
+		label := strconv.Itoa(chart.Year)
+		out = append(out, periodChip{ID: label, Label: label, Active: chart.Year == active})
+	}
+	return out
 }
 
 func presentAlbumList(albums []lastfm.Album) []albumView {
